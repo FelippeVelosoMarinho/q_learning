@@ -1,3 +1,5 @@
 build
 concepts_review
 __pycache__
+.venv
+.vscode

@@ -1,10 +1,8 @@
 # Projeto de Apresentação em LaTeX
 
 ## Introdução
+Antes do passo a passo para o projeto em si.
 
-Esse projeto é um template base para a execução de trabalhos acadêmicos utilizando LaTeX. Além disso existe uma base organizacional para análise de dados e visualização utilizando Python.
-
-> Contribuições são bem-vindas! Sinta-se à vontade para abrir issues ou pull requests.
 
 ## Criação do ambiente virtual 
 
