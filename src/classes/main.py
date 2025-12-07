@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 alpha = 0.2 
 y = 0.95 
@@ -6,8 +7,6 @@ epsilon = 0.1 # ϵ-greedy param
 limit = 10
 
 actions = ["CIMA", "DIREITA", "BAIXO", "ESQUERDA"]
-
-total_episodes = 100 # 100 epsisodes
 
 # o estado de inicializa¸c˜ao do agente em cada epis´odio deve ser escolhido aleat´orimente
 #  dentre os estados n˜ao terminais.
@@ -88,9 +87,9 @@ def k2pos(state: tuple[int, int]) -> int:
     '''
     return (state[0]-1)*4 + (state[1] - 1)
 
-def qlearning():
+def qlearning(verbose=False, interactive=False, total_episodes=500):
     qtable = get_table()
-    
+    reward_history = []
     terminal_states = [(4,4), (4,2), (1,3)]
     
     for i in range(total_episodes):
@@ -112,24 +111,28 @@ def qlearning():
             cummulated_reward += reward
             q_current = qtable[k2pos(s), action]
             q_next_max = np.max(qtable[k2pos(s_next)])
-            qtable[k2pos(s), action] = q_current + alpha * (reward + y * q_next_max / q_current )
-            
-            s = s_next
+            qtable[k2pos(s), action] = q_current + alpha * (reward + y * q_next_max )
 
-            print("tabela no passo ", step, "episodio ", s, "reward ", reward, "acao ", actions[action])
-            input()
-            print(action)
-            print(qtable)
+            s = s_next
+            if verbose or interactive:
+                print("tabela no passo ", step, "episodio ", s, "reward ", reward, "acao ", actions[action])
+                if interactive:
+                    input()
+                print(action)
+                print(qtable)
 
             if reward in [20, -20]:
                 break
-
             step += 1
-        print("Recompensa acumulada no episodio ", s, " : ", cummulated_reward)
-
-    return qtable
+        if (verbose):
+            print("Recompensa acumulada no episodio ", s, " : ", cummulated_reward)
+        reward_history.append(cummulated_reward)
+    return qtable, reward_history
 
 if __name__ == "__main__":
     print(get_table())
-    table = qlearning()
+    table, history = qlearning()
+    x = np.linspace(1, 100, 100)
+    plt.plot(x, history)
+    plt.show()
     print(table)
