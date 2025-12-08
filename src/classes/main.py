@@ -87,7 +87,7 @@ def k2pos(state: tuple[int, int]) -> int:
     '''
     return (state[0]-1)*4 + (state[1] - 1)
 
-def qlearning(verbose=False, interactive=False, total_episodes=500):
+def qlearning(verbose=False, interactive=False, total_episodes=200):
     qtable = get_table()
     reward_history = []
     terminal_states = [(4,4), (4,2), (1,3)]
