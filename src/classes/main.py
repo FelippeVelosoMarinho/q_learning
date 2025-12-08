@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 
 alpha = 0.2 
 y = 0.95 
-epsilon = 0.1 # ϵ-greedy param
 limit = 10
 
 actions = ["CIMA", "DIREITA", "BAIXO", "ESQUERDA"]
@@ -74,6 +73,17 @@ def get_table():
                 table[k2pos((i, j)), 1] = -np.inf
     return table
 
+def e_greedy_action(state: tuple[int, int], qtable: np.ndarray, epsilon: float) -> int:
+    '''
+    Seleciona uma ação usando a política epsilon-greedy.
+    '''
+    if np.random.rand() < epsilon:
+        # Exploração: escolhe uma ação aleatória
+        return np.random.choice(np.where(qtable[k2pos(state)] != -np.inf)[0])
+    else:
+        # Exploração: escolhe a melhor ação com base na Q-table
+        return np.argmax(qtable[k2pos(state), :])
+
 def k2pos(state: tuple[int, int]) -> int:
     '''
     Auxiliar para achatamento de coordenadas. quando um agente (x,y) 
@@ -87,7 +97,7 @@ def k2pos(state: tuple[int, int]) -> int:
     '''
     return (state[0]-1)*4 + (state[1] - 1)
 
-def qlearning(verbose=False, interactive=False, total_episodes=200):
+def qlearning(verbose=False, interactive=False, total_episodes=200, epsilon=0.1):
     qtable = get_table()
     reward_history = []
     terminal_states = [(4,4), (4,2), (1,3)]
@@ -105,7 +115,7 @@ def qlearning(verbose=False, interactive=False, total_episodes=200):
                 break
 
         while step < limit:
-            action = np.argmax(qtable[k2pos(s), :])
+            action = e_greedy_action(s, qtable, epsilon)
             s_next = rollout(s, action)
             reward = get_reward(s_next)
             cummulated_reward += reward
