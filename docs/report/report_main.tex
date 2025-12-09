@@ -1,4 +1,3 @@
-
 \documentclass[12pt,a4paper]{article}
 
 % Pacotes básicos
@@ -11,14 +10,16 @@
 \usepackage{hyperref}
 \usepackage{caption}
 \usepackage{cite}
-\usepackage{listings} % para formatar blocos de código
-\usepackage{enumitem} % para controlar listas
-\usepackage{xcolor}   % necessário para cores no listings
+\usepackage{listings}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{subcaption} 
+\usepackage{booktabs} % Para tabelas mais bonitas
 
-% Configurações do listings
+% Configurações do listings (Python)
 \lstset{
   language=Python,
-  basicstyle=\ttfamily\small,
+  basicstyle=\ttfamily\footnotesize,
   numbers=left,
   numberstyle=\tiny,
   frame=single,
@@ -26,18 +27,13 @@
   keywordstyle=\color{blue}\bfseries,
   stringstyle=\color{red},
   commentstyle=\color{green!60!black}\itshape,
-  showstringspaces=false
+  showstringspaces=false,
+  inputencoding=utf8,
+  extendedchars=true,
+  literate={á}{{\'a}}1 {ã}{{\~a}}1 {é}{{\'e}}1 {ç}{{\c{c}}}1 {ê}{{\^e}}1 {ó}{{\'o}}1 {í}{{\'i}}1
 }
 
 \graphicspath{{./}{../}{../../}{../../plots/}{../../plots/img/}}
-
-% \title{Relatório do Projeto de Grafos e Algoritmos de Busca}
-% \author{
-% Áquila Oliveira Souza | 2021019327 \\ 
-% Felippe Veloso Marinho | 2021072260 \\ 
-% Jefferson Pereira de Souza | 2022099049
-% }
-% \date{\today}
 
 \begin{document}
 
@@ -49,10 +45,10 @@
     {\Large \textbf{Universidade Federal de Minas Gerais}}\\[0.3cm]
     {\large Engenharia de Sistemas}\\[2cm]
     
-    {\Huge \textbf{Relatório do Projeto de Grafos e Algoritmos de Busca}}\\[1.5cm]
+    {\Huge \textbf{Relatório de controle de um robô em um ambiente simulado usando aprendizado por reforço (Q-Learning)}}\\[1.5cm]
     
     \textbf{Fundamentos de Inteligência Artificial}\\[0.5cm]
-    \textbf{Professores:} Cristiano Castro e João Pedro Campos\\[1.5cm]
+    \textbf{Professores:} Cristiano Castro e João Paulo Lara\\[1.5cm]
     
     \begin{flushleft}
         \textbf{Alunos:}\\
@@ -73,22 +69,211 @@
 \clearpage
 
 % ==============================
-% INTRODUÇÃO
+% 1. INTRODUÇÃO
 % ==============================
 \section{Introdução}
+O objetivo deste trabalho é documentar a implementação do algoritmo Q-learning seguindo uma política $\epsilon$-greedy para ensinar um agente a navegar em um laboratório simulado e encontrar a saída com o mínimo de passos possível, evitando obstáculos que possam atolá-lo ou destruí-lo.
 
-\section{Modelagem do Problema em Forma de Grafo}
+% ==============================
+% 2. FUNDAMENTAÇÃO TEÓRICA (NOVO)
+% ==============================
+\section{Fundamentação Teórica: Q-Learning}
 
-O problema da \textit{Ponte e da Tocha} foi modelado como um problema de busca em espaço de estados e também como um CSP (\textit{Constraint Satisfaction Problem}). Essa abordagem permite tanto a análise formal do problema em termos de grafos, como também a aplicação de algoritmos de busca clássicos para encontrar soluções ótimas. 
+O Q-Learning é um algoritmo de Aprendizado por Reforço \textit{model-free} (livre de modelo) e \textit{off-policy}. O objetivo do algoritmo é aprender uma função de valor de ação $Q(s, a)$, que estima a recompensa acumulada esperada ao executar uma ação $a$ em um estado $s$ e, posteriormente, seguir uma política ótima.
 
-\subsection{Estados}
-\subsection{Definição Formal do Grafo}
+A base do algoritmo é a Equação de Bellman para a atualização iterativa dos valores Q. A regra de atualização utilizada a cada passo de tempo é dada por:
 
-\subsection{Algoritmo de Dijkstra}
-\section{Referências}
+\begin{equation}
+    Q(s,a) \leftarrow Q(s,a) + \alpha \left[ R + \gamma \max_{a'} Q(s', a') - Q(s,a) \right]
+\end{equation}
+
+Onde:
+\begin{itemize}
+    \item $Q(s,a)$: Valor atual estimado para o par estado-ação.
+    \item $\alpha$ (taxa de aprendizado): Determina o quanto as novas informações substituem as antigas ($0 < \alpha \le 1$).
+    \item $R$: Recompensa imediata recebida após a ação.
+    \item $\gamma$ (fator de desconto): Determina a importância das recompensas futuras ($0 \le \gamma \le 1$).
+    \item $\max_{a'} Q(s', a')$: A estimativa da melhor recompensa futura possível a partir do novo estado $s'$.
+\end{itemize}
+
+O algoritmo garante a convergência para os valores ótimos $Q^*(s,a)$ desde que todos os pares estado-ação sejam visitados infinitas vezes e a taxa de aprendizado decaia apropriadamente, permitindo que o agente derive uma política ótima $\pi^*(s) = \arg\max_a Q(s,a)$.
+
+% ==============================
+% 3. MODELAGEM DO PROBLEMA
+% ==============================
+\section{Modelagem do Problema}
+
+\subsection{Definição do Ambiente e Recompensas}
+
+O espaço de estados é um grid $4 \times 4$. As ações do agente são: ir para CIMA, DIREITA, BAIXO e ESQUERDA, desde que os limites do grid permitam. Por exemplo, na posição $(1, 1)$, ele só pode ir para cima ou para a direita.
+
+A função de recompensa é definida da seguinte forma:
+\begin{itemize}
+    \item Cada passo para um estado vazio gera uma recompensa de $-1$.
+    \item Se pisar na lama, a recompensa é $-5$.
+    \item Se pisar na substância tóxica, a recompensa é $-20$ e o episódio termina (estado terminal negativo).
+    \item Se encontrar a saída, a recompensa é $+20$ e o episódio termina (estado terminal positivo).
+\end{itemize}
+
+Os estados terminais representam os locais onde as substâncias tóxicas se encontram e também a porta de saída do laboratório, conforme ilustrado na Figura \ref{fig:grid}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.4\textwidth]{grid.png}
+    \caption{Representação do ambiente do laboratório (Grid $4 \times 4$).}
+    \label{fig:grid}
+\end{figure}
+
+% ==============================
+% 4. ESTRATÉGIAS ADOTADAS
+% ==============================
+\section{Estratégias Adotadas}
+
+\subsection{Implementação Computacional}
+As características do ambiente foram traduzidas para o código da seguinte maneira:
+
+\begin{itemize}
+    \item \textbf{Espaço de estados:} Formado por 16 células, indexadas por coordenadas $(x, y)$ onde $x, y \in \{1, 2, 3, 4\}$.
+    \item \textbf{Espaço de ações:} Definido pela lista \texttt{actions = ["CIMA", "DIREITA", "BAIXO", "ESQUERDA"]}, mapeados respectivamente para os índices 0, 1, 2 e 3.
+    \item \textbf{Dinâmica:} Foi definida a função \texttt{rollout} que move o agente uma célula na direção escolhida. Não há verificação de borda na dinâmica de movimento em si dentro desta função; no entanto, as ações inválidas são prevenidas marcando-as com $-\infty$ na tabela Q.
+    \item \textbf{Recompensas (\texttt{get\_reward}):}
+    \begin{itemize}
+        \item \textit{Estados terminais negativos (Tóxicos/Radioativos):} As posições $(4,2)$ e $(1,3)$ retornam $-20$.
+        \item \textit{Obstáculos (Lama):} As posições $(3,2)$ e $(2,4)$ retornam $-5$.
+        \item \textit{Estado terminal positivo (Saída):} A posição $(4,4)$ retorna $+20$.
+        \item \textit{Passo comum:} Retorna $-1$ para os demais estados.
+    \end{itemize}
+    \item \textbf{Condições de parada:} Os episódios encerram ao atingir uma recompensa de $+20$ ou $-20$, ou ao ultrapassar o limite de passos (\texttt{limit = 10}).
+\end{itemize}
+
+\subsection{Hiperparâmetros}
+A tabela Q é inicializada com zeros para ações válidas e $-\infty$ para ações inválidas (bordas). Os hiperparâmetros utilizados foram:
+\begin{itemize}
+    \item Taxa de aprendizado ($\alpha$): $0.2$
+    \item Fator de desconto ($\gamma$): $0.95$
+    \item Máximo de iterações por episódio: $10$
+\end{itemize}
+
+\subsection{Política $\epsilon$-greedy}
+Para a seleção de ações, adotou-se a política $\epsilon$-greedy. O agente escolhe a ação com maior valor $Q$ com probabilidade $1-\epsilon$ (explotação) e uma ação aleatória com probabilidade $\epsilon$ (exploração). Conforme especificado no enunciado, em caso de empate nos valores $Q$ durante a escolha gulosa ($A^*$), o desempate é feito de forma aleatória entre as melhores ações.
+
+% ==============================
+% 5. ANÁLISE E RESULTADOS
+% ==============================
+\section{Análise e Resultados}
+
+\subsection{Variação do Parâmetro $\epsilon$}
+
+Abaixo apresentamos os gráficos de recompensa acumulada por episódio e a média móvel (janela de 10 episódios) para diferentes valores de $\epsilon$. O número de episódios foi fixado em 300 para melhor visualização da estabilidade a longo prazo.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \includegraphics[width=\textwidth]{plot_eps_0.01.png}
+        \caption{$\epsilon = 0.01$ (Muita Explotação)}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \includegraphics[width=\textwidth]{plot_eps_0.1.png}
+        \caption{$\epsilon = 0.1$ (Padrão sugerido)}
+    \end{subfigure}
+    \caption{Comparação de convergência: Baixa exploração vs Padrão.}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \includegraphics[width=\textwidth]{plot_eps_0.3.png}
+        \caption{$\epsilon = 0.3$}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \includegraphics[width=\textwidth]{plot_eps_0.7.png}
+        \caption{$\epsilon = 0.7$}
+    \end{subfigure}
+    \caption{Comparação de convergência com exploração moderada a alta.}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.48\textwidth}
+        \includegraphics[width=\textwidth]{plot_eps_0.5.png}
+        \caption{$\epsilon = 0.5$ (Equilibrado)}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.48\textwidth}
+        \includegraphics[width=\textwidth]{plot_eps_0.9.png}
+        \caption{$\epsilon = 0.9$ (Muita Exploração)}
+    \end{subfigure}
+    \caption{Impacto de alta taxa de exploração na convergência.}
+\end{figure}
+
+Os experimentos foram realizados variando o parâmetro $\epsilon$ em $\{0.01, 0.1, 0.3, 0.5, 0.7, 0.9\}$. As médias totais de recompensa obtidas foram:
+
+\begin{itemize}
+    \item $\epsilon = 0.01$: Média de $15.11$ (Melhor desempenho)
+    \item $\epsilon = 0.1$: Média de $-6.05$
+    \item $\epsilon = 0.3$: Média de $-11.41$
+    \item $\epsilon = 0.5$: Média de $-9.14$
+    \item $\epsilon = 0.7$: Média de $-16.11$
+    \item $\epsilon = 0.9$: Média de $-16.07$ (Pior desempenho)
+\end{itemize}
+
+Os dados mostram que valores muito baixos de exploração ($\epsilon=0.01$) resultaram nas melhores médias globais. Isso ocorre devido à natureza perigosa do ambiente: como as penalidades para erros são severas ($-20$ para o tóxico e $-5$ para a lama), qualquer movimento aleatório indesejado após o aprendizado do caminho ótimo reduz drasticamente a pontuação acumulada. Com $\epsilon \ge 0.5$, o agente colide frequentemente com obstáculos, explicando as médias negativas.
+
+\subsection{Política Ótima Encontrada}
+
+Abaixo apresentamos a tabela Q final e a política ótima derivada.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\begin{tabular}{|c|r|r|r|r|}
+\hline
+\textbf{Estado} & \textbf{CIMA} & \textbf{DIREITA} & \textbf{BAIXO} & \textbf{ESQUERDA} \\ \hline
+(1, 1) & 10.48 & -0.76 & $-\infty$ & $-\infty$ \\ \hline
+(1, 2) & 12.41 & -4.00 & $-\infty$ & -0.60 \\ \hline
+(1, 3) & 0.00 & 0.00 & $-\infty$ & 0.00 \\ \hline
+(1, 4) & 8.43 & $-\infty$ & $-\infty$ & -4.00 \\ \hline
+(2, 1) & -0.66 & 12.58 & -0.79 & $-\infty$ \\ \hline
+(2, 2) & 1.83 & 14.29 & -0.36 & 1.86 \\ \hline
+(2, 3) & 16.10 & -1.00 & -4.00 & 2.36 \\ \hline
+(2, 4) & -0.36 & $-\infty$ & -0.93 & 14.29 \\ \hline
+(3, 1) & -1.00 & -1.00 & 10.93 & $-\infty$ \\ \hline
+(3, 2) & -4.00 & 16.06 & -0.20 & -0.24 \\ \hline
+(3, 3) & 18.00 & 7.85 & 2.83 & 0.00 \\ \hline
+(3, 4) & 19.85 & $-\infty$ & 1.10 & -0.20 \\ \hline
+(4, 1) & $-\infty$ & -4.00 & 8.43 & $-\infty$ \\ \hline
+(4, 2) & $-\infty$ & 0.00 & 0.00 & 0.00 \\ \hline
+(4, 3) & $-\infty$ & 20.00 & 3.22 & 0.00 \\ \hline
+(4, 4) & $-\infty$ & $-\infty$ & 0.00 & 0.00 \\ \hline
+\end{tabular}
+\caption{Valores Q finais aprendidos (Média de 300 episódios, $\epsilon=0.01$)}
+\label{tab:qtable_numeric}
+\end{table}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|c|c|c|}
+\hline
+(4,1) $\downarrow$ BAIXO & (4,2) \textbf{TÓXICO} & (4,3) $\rightarrow$ DIREITA & (4,4) \textbf{SAÍDA} \\ \hline
+(3,1) $\downarrow$ BAIXO & (3,2) \textbf{LAMA} & (3,3) $\rightarrow$ DIREITA & (3,4) $\uparrow$ CIMA \\ \hline
+(2,1) $\rightarrow$ DIREITA & (2,2) $\rightarrow$ DIREITA & (2,3) $\uparrow$ CIMA & (2,4) \textbf{LAMA} \\ \hline
+(1,1) $\uparrow$ CIMA & (1,2) $\uparrow$ CIMA & (1,3) \textbf{TÓXICO} & (1,4) $\uparrow$ CIMA \\ \hline
+\end{tabular}
+\caption{Política Ótima obtida com $\epsilon=0.01$}
+\label{tab:policy_final}
+\end{table}
+
+% ==============================
+% 6. CONCLUSÃO
+% ==============================
+\section{Conclusão}
+
+O algoritmo Q-Learning foi capaz de convergir para uma solução ótima no ambiente do laboratório simulado. A introdução da fundamentação teórica de Bellman permitiu compreender como os valores explodiram em magnitude devido à formulação acumulativa, mas ainda assim preservaram a ordem de preferência correta para a navegação. 
+
+A análise da variação do parâmetro $\epsilon$ evidenciou o dilema exploração-explotação: taxas muito altas de exploração impedem a estabilização da recompensa máxima, enquanto taxas muito baixas aceleram a convergência mas aumentam o risco de mínimos locais. Para este ambiente específico, um $\epsilon=0.01$ provou ser o mais eficiente.
+
 \clearpage
-\addcontentsline{toc}{section}{Referências}
-\bibliographystyle{plain}
-\bibliography{references}
 
 \end{document}

@@ -12,16 +12,6 @@ actions = ["CIMA", "DIREITA", "BAIXO", "ESQUERDA"]
 
 # PRECISA ALTERAR TODA POLÍTICA DE ATUALIZAÇÃO PARA A DO ENUNCIADO
 
-episodes = [[2, 2],
-            [3, 1],
-            [1, 1],
-            [1, 2],
-            [1, 4],
-            [1, 4],
-            [2, 2],
-            [3, 1],
-            [1, 1]]
-
 # state vai ser a posicao (x, y) no grid 4x4
 
 def rollout(state, action):
@@ -74,15 +64,24 @@ def get_table():
     return table
 
 def e_greedy_action(state: tuple[int, int], qtable: np.ndarray, epsilon: float) -> int:
-    '''
-    Seleciona uma ação usando a política epsilon-greedy.
-    '''
+    state_idx = k2pos(state)
+    
+    # Ações válidas (que não são -inf)
+    valid_actions = np.where(qtable[state_idx] != -np.inf)[0]
+    
     if np.random.rand() < epsilon:
-        # Exploração: escolhe uma ação aleatória
-        return np.random.choice(np.where(qtable[k2pos(state)] != -np.inf)[0])
+        # Exploração: aleatório entre as válidas
+        return np.random.choice(valid_actions)
     else:
-        # Exploração: escolhe a melhor ação com base na Q-table
-        return np.argmax(qtable[k2pos(state), :])
+        # Explotação: melhor ação com desempate aleatório
+        q_values = qtable[state_idx, valid_actions]
+        max_q = np.max(q_values)
+        # Pega todos os índices que têm o valor máximo
+        best_actions_indices = np.where(qtable[state_idx] == max_q)[0]
+        # Filtra para garantir que só pegamos ações válidas (precaução)
+        best_valid_actions = [a for a in best_actions_indices if a in valid_actions]
+        
+        return np.random.choice(best_valid_actions)
 
 def k2pos(state: tuple[int, int]) -> int:
     '''
@@ -106,11 +105,11 @@ def qlearning(verbose=False, interactive=False, total_episodes=200, epsilon=0.1)
         step = 0
         cummulated_reward = 0
         
-        while True: # loop de sorteio
+        # Sorteio de estado inicial válido
+        while True:
             start_x = np.random.randint(1,5)
             start_y = np.random.randint(1,5)
             s = [start_x, start_y]
-            
             if tuple(s) not in terminal_states:
                 break
 
@@ -118,31 +117,85 @@ def qlearning(verbose=False, interactive=False, total_episodes=200, epsilon=0.1)
             action = e_greedy_action(s, qtable, epsilon)
             s_next = rollout(s, action)
             reward = get_reward(s_next)
+            
             cummulated_reward += reward
+            
+            # === CORREÇÃO DA LÓGICA DE ATUALIZAÇÃO ===
             q_current = qtable[k2pos(s), action]
-            q_next_max = np.max(qtable[k2pos(s_next)])
-            qtable[k2pos(s), action] = q_current + alpha * (reward + y * q_next_max )
+            
+            # Verifica se o próximo estado é terminal para definir o alvo
+            if reward in [20, -20]:
+                target = reward
+            else:
+                q_next_max = np.max(qtable[k2pos(s_next)])
+                target = reward + y * q_next_max
+            
+            # Fórmula corrigida (subtraindo q_current)
+            qtable[k2pos(s), action] = q_current + alpha * (target - q_current)
+            # =========================================
 
             s = s_next
-            if verbose or interactive:
-                print("tabela no passo ", step, "episodio ", s, "reward ", reward, "acao ", actions[action])
-                if interactive:
-                    input()
-                print(action)
-                print(qtable)
-
+            
             if reward in [20, -20]:
                 break
             step += 1
-        if (verbose):
-            print("Recompensa acumulada no episodio ", s, " : ", cummulated_reward)
+            
         reward_history.append(cummulated_reward)
+        
     return qtable, reward_history
+
+# def qlearning(verbose=False, interactive=False, total_episodes=200, epsilon=0.1):
+#     qtable = get_table()
+#     reward_history = []
+#     terminal_states = [(4,4), (4,2), (1,3)]
+    
+#     for i in range(total_episodes):
+#         step = 0
+#         cummulated_reward = 0
+        
+#         while True: # loop de sorteio
+#             start_x = np.random.randint(1,5)
+#             start_y = np.random.randint(1,5)
+#             s = [start_x, start_y]
+            
+#             if tuple(s) not in terminal_states:
+#                 break
+
+#         while step < limit:
+#             if reward in [20, -20]:
+#                 target = reward
+#             else:
+#                 q_next_max = np.max(qtable[k2pos(s_next)])
+#                 target = reward + y * q_next_max
+#             action = e_greedy_action(s, qtable, epsilon)
+#             s_next = rollout(s, action)
+#             reward = get_reward(s_next)
+#             cummulated_reward += reward
+#             #q_current = qtable[k2pos(s), action]
+#             q_next_max = np.max(qtable[k2pos(s_next)])
+#             #qtable[k2pos(s), action] = q_current + alpha * (reward + y * q_next_max )
+#             q_current = qtable[k2pos(s), action]
+#             qtable[k2pos(s), action] = q_current + alpha * (target - q_current)
+
+#             s = s_next
+#             if verbose or interactive:
+#                 print("tabela no passo ", step, "episodio ", s, "reward ", reward, "acao ", actions[action])
+#                 if interactive:
+#                     input()
+#                 print(action)
+#                 print(qtable)
+
+#             step += 1
+#         if (verbose):
+#             print("Recompensa acumulada no episodio ", s, " : ", cummulated_reward)
+#         reward_history.append(cummulated_reward)
+#     return qtable, reward_history
 
 if __name__ == "__main__":
     print(get_table())
     table, history = qlearning()
-    x = np.linspace(1, 100, 100)
-    plt.plot(x, history)
-    plt.show()
+    #x = np.linspace(1, 100, 100)
+    x = range(len(history))
+    #plt.plot(x, history)
+    #plt.show()
     print(table)
