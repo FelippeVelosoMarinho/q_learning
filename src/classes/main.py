@@ -120,7 +120,7 @@ def qlearning(verbose=False, interactive=False, total_episodes=200, epsilon=0.1)
             
             cummulated_reward += reward
             
-            # === CORREÇÃO DA LÓGICA DE ATUALIZAÇÃO ===
+            # atualização da Q-Table
             q_current = qtable[k2pos(s), action]
             
             # Verifica se o próximo estado é terminal para definir o alvo
@@ -143,53 +143,6 @@ def qlearning(verbose=False, interactive=False, total_episodes=200, epsilon=0.1)
         reward_history.append(cummulated_reward)
         
     return qtable, reward_history
-
-# def qlearning(verbose=False, interactive=False, total_episodes=200, epsilon=0.1):
-#     qtable = get_table()
-#     reward_history = []
-#     terminal_states = [(4,4), (4,2), (1,3)]
-    
-#     for i in range(total_episodes):
-#         step = 0
-#         cummulated_reward = 0
-        
-#         while True: # loop de sorteio
-#             start_x = np.random.randint(1,5)
-#             start_y = np.random.randint(1,5)
-#             s = [start_x, start_y]
-            
-#             if tuple(s) not in terminal_states:
-#                 break
-
-#         while step < limit:
-#             if reward in [20, -20]:
-#                 target = reward
-#             else:
-#                 q_next_max = np.max(qtable[k2pos(s_next)])
-#                 target = reward + y * q_next_max
-#             action = e_greedy_action(s, qtable, epsilon)
-#             s_next = rollout(s, action)
-#             reward = get_reward(s_next)
-#             cummulated_reward += reward
-#             #q_current = qtable[k2pos(s), action]
-#             q_next_max = np.max(qtable[k2pos(s_next)])
-#             #qtable[k2pos(s), action] = q_current + alpha * (reward + y * q_next_max )
-#             q_current = qtable[k2pos(s), action]
-#             qtable[k2pos(s), action] = q_current + alpha * (target - q_current)
-
-#             s = s_next
-#             if verbose or interactive:
-#                 print("tabela no passo ", step, "episodio ", s, "reward ", reward, "acao ", actions[action])
-#                 if interactive:
-#                     input()
-#                 print(action)
-#                 print(qtable)
-
-#             step += 1
-#         if (verbose):
-#             print("Recompensa acumulada no episodio ", s, " : ", cummulated_reward)
-#         reward_history.append(cummulated_reward)
-#     return qtable, reward_history
 
 if __name__ == "__main__":
     print(get_table())
